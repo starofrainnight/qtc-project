@@ -98,6 +98,13 @@ def update():
             "__pycache__",
             "*.egg-info",
             ".eggs",
+            # Don't include these files, they will includes automaticly
+            f"{project_name}.cflags",
+            f"{project_name}.cxxflags",
+            f"{project_name}.includes",
+            f"{project_name}.files",
+            f"{project_name}.creator",
+            f"{project_name}.config",
         ]
     )
     spec = pathspec.PathSpec.from_lines("gitwildmatch", lines)
