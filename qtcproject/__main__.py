@@ -27,11 +27,13 @@ def main():
 
 @main.command()
 def create():
-    pass
+    """Create a general QtCreator project"""
 
 
 @main.command()
 def update():
+    """Update project includes & files"""
+
     project_fpathes = glob.glob(os.path.join(os.curdir, "*.files"))
     if len(project_fpathes) <= 0:
         print("No QtCreator generic project found!")
