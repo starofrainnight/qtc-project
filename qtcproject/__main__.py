@@ -28,6 +28,31 @@ def main():
 @main.command()
 def create():
     """Create a general QtCreator project"""
+    proj_dir = os.path.normpath(os.path.realpath(os.curdir))
+    proj_name = os.path.basename(proj_dir)
+    proj_file = os.path.join(proj_dir, f"{proj_name}.creator")
+    if os.path.exists(proj_file):
+        raise click.UsageError(f"Project '{proj_name}' already exists!")
+
+    files = [
+        ("cflags", "-std=c17\n"),
+        ("cxxflags", "-std=c++17\n"),
+        (
+            "config",
+            "// Add predefined macros for your project here. For example:\n"
+            "// #define THE_ANSWER 42\n",
+        ),
+        ("includes", ""),
+        ("files", ""),
+        ("creator", "[General]\n"),
+    ]
+
+    for fext, content in files:
+        fname = f"{proj_name}.{fext}"
+        fpath = os.path.join(proj_dir, fname)
+        click.echo(f"Creating: {fname}")
+        with open(fpath, "w") as f:
+            f.write(content)
 
 
 @main.command()
