@@ -9,15 +9,8 @@ import glob
 import pathlib
 import fnmatch
 import re
+import pathspec
 from typing import List
-
-
-def fnmatch_filter_patterns(names: List[str], patterns: List[str]):
-    for name in names:
-        for pattern in patterns:
-            if fnmatch.fnmatch(name, pattern):
-                yield name
-                break
 
 
 @click.group()
@@ -66,7 +59,7 @@ def update():
 
     if len(project_fpathes) >= 2:
         print(
-            "Found more than one  QtCreator generic project: %s"
+            "Found more than one QtCreator generic project: %s"
             % project_fpathes
         )
         return -2
@@ -81,53 +74,55 @@ def update():
     print("Updating project: %s" % project_name)
 
     # Search project files
-    dir_denylist = [
-        ".git",
-        "CVS",
-        ".svn",
-        ".hg",
-        "CMakeFiles",
-        ".vscode",
-        ".idea",
-    ]
-    file_allowlist = [
-        "*.h",
-        "*.hpp",
-        "*.hxx",
-        "*.c",
-        "*.cpp",
-        "*.cxx",
-        "*.inl",
-        "*.in",
-        "*.cmake",
-    ]
+    lines = []
+    gitignores_fpath = os.path.join(project_dir, ".gitignore")
+    if os.path.exists(gitignores_fpath):
+        with open(gitignores_fpath, "r") as f:
+            lines.extend(f.readlines())
+
+    qtcignores_fpath = os.path.join(project_dir, f"{project_name}.gitignore")
+    if os.path.exists(qtcignores_fpath):
+        with open(qtcignores_fpath, "r") as f:
+            lines.extend(f.readlines())
+
+    lines.extend(
+        [
+            ".git",
+            ".svn",
+            "CVS",
+            ".hg",
+            ".qtc_clangd",
+            "CMakeFiles",
+            ".vscode",
+            ".idea",
+            "__pycache__",
+            "*.egg-info",
+            ".eggs",
+        ]
+    )
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", lines)
 
     with open(files_fpath, "w", encoding="utf-8") as files_file:
         hdr_paths = []
         for root, dirs, files in os.walk(project_dir):
-            allow_files = list(fnmatch_filter_patterns(files, file_allowlist))
-            for fname in allow_files:
+            for fname in files:
                 fpath = pathlib.Path(os.path.join(root, fname))
-                fpath = fpath.relative_to(project_dir)
+                fpath_rel = fpath.relative_to(project_dir)
+                if not spec.match_file(fpath_rel):
+                    files_file.write(str(fpath_rel).replace("\\", "/"))
+                    files_file.write("\n")
 
-                files_file.write(str(fpath).replace("\\", "/"))
-                files_file.write("\n")
+            dir_removes = []
+            for adir in dirs:
+                fpath = pathlib.Path(os.path.join(root, adir))
+                fpath_rel = fpath.relative_to(project_dir)
+                if spec.match_file(fpath_rel):
+                    dir_removes.append(adir)
+                else:
+                    hdr_paths.append(str(fpath_rel).replace("\\", "/"))
 
-            # Remove all directories which matched the pattern in dir_denylist
-            deny_dirs = list(fnmatch_filter_patterns(dirs, dir_denylist))
-            for adir in deny_dirs:
+            for adir in dir_removes:
                 dirs.remove(adir)
-
-            hdr_paths.extend(
-                map(
-                    lambda it: str(
-                        pathlib.Path(os.path.join(root, it)).relative_to(
-                            project_dir
-                        )
-                    ).replace("\\", "/"),
-                    dirs,
-                )
-            )
 
         includes_fpath = "%s.includes" % project_prefix_fpath
         content = ""

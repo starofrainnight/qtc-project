@@ -13,7 +13,7 @@ with io.open("README.rst", encoding="utf-8") as readme_file, io.open(
 
 install_requires = [
     "click>=6.0",
-    "pathspec",
+    "pathspec>=0.11.2",
 ]
 
 setup_requires = [
